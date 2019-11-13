@@ -2,10 +2,11 @@
 The main code is obtained from python samples in OpenCV, camshift.py,  letter_recog.py and facedetect.py
 
 ### Directory Structure
+```
 |- README.md explains the implementation, requirement and how to run the code.
 |- `camshift_handdetect.py` the implementation of the hand action detection with predictions of the letter as described below.
 |- `project4_feature_generation.ipynb` the notebook ran in Google Colab to generate the VGG16 features to train the MLP model for the letter recognition.
-
+```
 ### Camshift Hand Detect Implementation
 The program will first detect the face using the pretrained model with Haar Cascade Classifier in OpenCV. Following the detected face. It will then calculate the color histogram representation of the face and perform Continuously Adaptive Meanshift (Camshift) to find parts of images which corresponds to the similar color (i.e. colour of the face) in the entire image. The original face is first obfuscated to prevent Camshift from returning the original area of the face.
 

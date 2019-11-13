@@ -2,11 +2,12 @@
 Disclaimer: the code base used in this is from OpenCV python sample
 
 ### Directory Structure
+```
 |- README.md explains the implementation, requirement and how to run the code.
 |- facedetect.py is the python program file that runs the face detection algorithm
 |- common.py is a replica from OpenCV sample as the utility to run facedetect.py
 |- video.py is a replica from OpenCV sample as the utility to run facedetect.py
-
+```
 ### Face Detection Implementation
 This programs performs the frontal face detection using the pretrained model with Haar Cascade Classifier in OpenCV. Haar features which works similarly to convolutional kernel are extracted from the images. Each feature is the subtraction of the sum of pixels in the white region from the sum of pixels from the black region. Integral images are used to improve the performance of the feature generation. Cascade of classifiers are then performed.
 

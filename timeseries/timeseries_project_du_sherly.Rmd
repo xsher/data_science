@@ -1,0 +1,270 @@
+---
+title: "Time Series Project - Sherly Sherly &  Du Ziqing"
+output: html_document
+---
+
+The dataset selected for this project: Fur sales, muskrat, H. B. Co, 1848-1911
+
+https://datamarket.com/data/set/22sf/fur-sales-muskrat-h-b-co-1848-1911#!ds=22sf&display=line
+
+The provider of this dataset is Hipel and McLeod (1994) and it consists of 61 values in time granularity of yearly. The data is for the years between 1848 to 1908.
+
+## Loading Data
+```{r}
+x=read.csv("/Users/sherly/Downloads/fur-sales-muskrat-h-b-co-1848191.csv",header = TRUE,stringsAsFactors=F)
+k=x$Fur.sales..muskrat..H..B..Co..1848.1911
+t=k[-length(k)]
+t=t[-length(t)]
+t= as.numeric(t)
+xtimeseries<-ts(t, frequency=1, start=c(1848,1))
+plot.ts(xtimeseries)
+```
+
+
+An additive model is modeled by:
+
+$X_{t} = M_{t} + S_{t} + Z_{t}$ 
+
+where $M_{t}$ is the trend component, $S_{t}$ is the seasonal component and $Z_{t}$ is the noise.
+
+In this case, we expect the amplitude of the seasonal effect to be the same. However, we can observe from the timeseries plot above that the fluctuations seem to increase with time. Hence, an additive model may not be the most appropriate way to model this timeseries.
+
+We then consider the multiplicative model:
+
+$X_{t} = M_{t} * S_{t} * Z_{t}$ 
+
+In order to fit the data easier, we perform log transformation on the dataset:
+
+$log(X_{t}) = log(M_{t}) + log(S_{t}) + log(Z_{t})$ 
+
+### Log transform the data 
+
+```{r}
+logxtimeseries <- log(xtimeseries)
+plot.ts(logxtimeseries)
+```
+
+The variability of the initial series increases over time. 
+
+We can now observe that there is a reduce in the variations of the fluctuations after performing log transformation. The next steps of this analysis is then performed with the log-transformed time series.
+
+## Analysis of transformation impact
+
+The function measures the average squared difference between the estimated values and what is estimated. 
+
+```{r}
+MSE<-function(y,yhat){
+  n=length(y)
+  y[is.na(y)] <- 0
+  yhat[is.na(yhat)] <- 0
+  sse<-sum((y-yhat)^2)
+  mse<-sqrt(sse/n)
+  return (mse)
+}
+```
+
+## Moving Average filter
+
+Smoothing with a finite moving average filter.
+
+It takes $(2q+1)$ points over the interval $[t-q,t+q]$, computes the average of those $(2q+1)$-points and produces a single output point.
+
+$W_{t} = (2q-1)^{-1}\sum_{j=-q}^{q} X_{t-j}$,    $q+1 \leq t \leq n-q$
+
+```{r}
+ASM<-function(datal,lag){
+  value=rep(NA,length(datal))
+  for (i in (lag+1):(length(datal)-lag)){
+    value[i]=datal[i]
+    for (j in 1:lag){
+      value[i] = value[i]+datal[i-j] + datal[i + j]
+    }
+		value[i] = value[i]/(2*lag+1)
+  }
+  value<-ts(value,frequency=1, start=c(1848,1))
+	return (value)
+}
+```
+
+Simple Moving Average filter
+
+It takes $q$ points over the interval $[t-q+1,t]$, computes the average of those $p$-points and produces a single output point.
+
+$W_{t} = q^{-1}\sum_{j=0}^{q-1} X_{t-j}$,  $q \leq t$
+
+```{r}
+ASMO<-function(datal,lag){
+  value=rep(NA,length(datal))
+  if (lag==1){
+    for (i in 1:length(datal)){
+      value[i]=datal[i]
+    }
+  }
+  else{
+    for (i in lag:length(datal)){
+      value[i]=datal[i]
+      for (j in 1:(lag-1)){
+        value[i] = value[i]+datal[i-j]
+      }
+		  value[i] = value[i]/lag
+    }
+  }
+  value<-ts(value,frequency=1, start=c(1848,1))
+	return (value)
+}
+```
+
+Show the difference between two different moving average filter method.
+Also load the SMA method which is imported from the library to verify the simple moving average filter.
+
+```{r}
+library("TTR")
+xma <- ASM(logxtimeseries,1)
+xmat <- ASMO(logxtimeseries,1)
+MA <- SMA(logxtimeseries,n=1)
+ts.plot(logxtimeseries,xma,xmat,MA,gpars=list(col=c("blue","red","yellow","green")))
+
+xma <- ASM(logxtimeseries,3)
+xmat <- ASMO(logxtimeseries,3)
+MA <- SMA(logxtimeseries,n=3)
+ts.plot(logxtimeseries,xma,xmat,MA,gpars=list(col=c("blue","red","yellow","green")))
+
+```
+
+From the above graph, we can observa that the green and yellow line are always overlap.So the simple moving average we made can be validated. And the moving average filter showed in lecture can eliminate more noise with the same lag but reduce the number of the samples more.
+
+
+### Effects of log transformation
+Check if the mean-square error differs with the log transformation
+```{r}
+xmap=rep(0,10)
+xmaplog=rep(0,10)
+for (i in 1:10){
+  xma <- ASM(xtimeseries,i)
+  xmap[i] <- MSE(xtimeseries,xma)
+  xma1 <- ASM(logxtimeseries,i)
+  xmaplog[i] <- MSE(logxtimeseries,xma1)
+}
+print("MSE Without log")
+print(xmap)
+print("MSE With log")
+print(xmaplog)
+```
+
+Comparing these two vectors, it is obvious that the logging stabilizes variance.
+
+
+## Moving Average Filter Behavior
+
+```{r}
+
+xma1 <- ASM(logxtimeseries,1)
+xma3 <- ASM(logxtimeseries,3)
+xma5 <- ASM(logxtimeseries,5)
+xma8 <- ASM(logxtimeseries,8)
+xma10 <- ASM(logxtimeseries,10)
+ts.plot(logxtimeseries,xma1,xma3,xma5,xma8,xma10,gpars=list(col=c("blue","red","yellow","green","purple", "black")))
+
+xma1 <- ASMO(logxtimeseries,1)
+xma3 <- ASMO(logxtimeseries,3)
+xma5 <- ASMO(logxtimeseries,5)
+xma8 <- ASMO(logxtimeseries,8)
+xma10 <- ASMO(logxtimeseries,10)
+ts.plot(logxtimeseries,xma1,xma3,xma5,xma8,xma10,gpars=list(col=c("blue","red","yellow","green","purple", "black")))
+```
+
+
+With the moving average filter showed in lecture, the noise can be almost clear with lag = 5 (the line is in green). And with the lag = 8(the line is in purple), the line is less curved. We can find a obvious trend component or seasonal component in this sense.
+
+With the simple moving average filter, the behaviors among all the lines are similar. They display hysteresis if we look carefully at the patterns. This filter is not sensitive enough to the latest recent data. 
+
+## Analysis of the Autocorrelation
+In order to study how the time series relates to its past values, we perform estimates of the autocorrelation function (ACF) at many lags. 
+
+```{r}
+autocor_fn <- function(x) {
+  # Auto-covariance
+  nt = length(x)
+  autocov = 0
+  for (i in (1:(nt-1)))
+  {
+    autocov[i] = cov(x[(i+1):nt],x[1:(nt-i)])
+  }
+  
+  # Auto-correlation (necessite l'auto-covariance h=0)
+  # We need the autocovariance for h=0
+  autocov0 = 0
+  for (i in (1:(nt-1)))
+  {
+    autocov0[i] = cov(x,x)
+  }
+  
+  autocor = 0
+  for (i in (1:(nt-1)))
+  {
+    autocor[i] = autocov[i]/autocov0[i]
+  }
+  barplot(autocor)
+  return(autocor)
+}
+autocor_fn(xtimeseries)
+```
+
+
+We observe from the autocorrelation function graph above that there is a cyclical pattern with a period of 10 to 11 as shown by the large positive values. At the same time, we observe at its half period of 5 to 6 the corresponding large negative values as well. We suspect that there is a seasonlity in this timseries with a period of 10 and we will perform analysis in the next steps.
+
+
+### Seasonality
+
+```{r}
+difference <- function(x, lag=1) {
+  n = length(x)
+  diffs = 0
+  for (i in (1:(n-lag)))
+  {
+    diffs[i] = x[i+lag] - x[i]
+  }
+  diffs<-ts(as.numeric(diffs),frequency=1, start=c(1848,1))
+  return(diffs)
+}
+
+# To verify the function
+diff(logxtimeseries) 
+difference(logxtimeseries)
+```
+
+
+In accordance to the suspected period of 10, we will try to remove the seasonality by performing a differencing operator with lag 10 as in atime series with a seasonal component, the lag is expected to be the period of the seasonality.
+
+
+```{r}
+plot.ts(logxtimeseries)
+diff10ts <- difference(logxtimeseries,lag=10)
+plot.ts(diff10ts)
+```
+
+We observe that the differenced time series at lag 10 has shown a centrality of values around 0. This supports that there could indeed be a seasonlity with period of 10 in this time series.
+
+
+```{r}
+autocor_fn(diff10ts)
+```
+
+The autocorrelation function for the differenced timeseries at lag 10 does not show a periodical cycle.
+
+
+```{r}
+xma1 <- ASM(diff10ts,1)
+xma3 <- ASM(diff10ts,3)
+xma5 <- ASM(diff10ts,5)
+xma8 <- ASM(diff10ts,8)
+ts.plot(diff10ts,xma1,xma3,xma5,xma8,gpars=list(col=c("blue","red","yellow","green","purple")))
+
+xma1 <- ASMO(diff10ts,1)
+xma3 <- ASMO(diff10ts,3)
+xma5 <- ASMO(diff10ts,5)
+xma8 <- ASMO(diff10ts,8)
+ts.plot(diff10ts,xma1,xma3,xma5,xma8,gpars=list(col=c("blue","red","yellow","green","purple")))
+```
+
+Applying the same smoothing on the timeseries which has been de-seasonalized, we observe that the values are smoother despite being completely just the random noise.
